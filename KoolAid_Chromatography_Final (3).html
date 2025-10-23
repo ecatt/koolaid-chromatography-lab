@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Kool-Aid Chromatography Virtual Lab</title>
+<style>
+:root{
+  --paper-w:360px;
+  --paper-h:480px; /* 12 cm * 40 px/cm = 480 px */
+  --ruler-w:84px;
+  --bg:#f6fbff;
+  --muted:#475569;
+  --accent:#0ea5a4;
+  --banner:#cfe8ff;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+body{font-family:var(--font);margin:0;padding:14px;background:var(--bg);color:#06273b;}
+.header{background:var(--banner);padding:12px;text-align:center;font-size:24px;font-weight:600;color:#06273b;border-radius:6px;}
+.container{max-width:1200px;margin:12px auto;}
+.lead{color:var(--muted);margin:8px 0 12px}
+.controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.controls label{font-size:14px}
+select,input{padding:6px;border-radius:6px;border:1px solid #dbeaf6}
+button{background:var(--accent);color:white;padding:8px 12px;border-radius:6px;border:0;cursor:pointer}
+button.ghost{background:#eef6f9;color:#06273b;border:1px solid #dbeaf6}
+.sim-row{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+.panel{display:flex;flex-direction:column;align-items:center;gap:8px}
+.title-small{font-weight:700}
+.wrapper{display:flex;gap:12px;align-items:flex-start}
+.ruler{width:var(--ruler-w);height:var(--paper-h);background:#e6e9ee;border-radius:6px;border:1px solid #c9d2da;box-sizing:border-box;padding:6px;position:relative}
+.paper{width:var(--paper-w);height:var(--paper-h);background:#fff;border:1px solid #dbe7ef;border-radius:6px;position:relative;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,0.6)}
+.baseline{position:absolute;left:14px;right:14px;height:3px;background:#575757;opacity:0.95}
+.front{position:absolute;left:14px;right:14px;height:2px;background:#ef4444;display:none}
+.spot{position:absolute;border-radius:50%;transform:translateX(-50%);box-shadow:0 2px 6px rgba(2,6,23,0.12);border:1px solid rgba(0,0,0,0.08)}
+.scale-note{font-size:12px;color:var(--muted)}
+.table-wrap{margin-top:14px}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid #e6eef4;padding:6px;text-align:left;font-size:13px}
+.small{font-size:12px;color:var(--muted)}
+.overlay{background:rgba(255,255,255,0.98);border-radius:8px;padding:10px;border:1px solid #e6eef4;box-shadow:0 6px 20px rgba(2,6,23,0.04);margin-bottom:12px}
+.footer{margin-top:12px;text-align:center;color:#6b7280;font-size:13px}
+@media (max-width:980px){ .sim-row{flex-direction:column;align-items:center} .wrapper{flex-direction:row} .ruler{height:360px} .paper{height:360px} }
+input[type="number"]{width:80px;}
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">Kool-Aid Chromatography Virtual Lab</div>
+
+    <div class="overlay">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div>
+          <strong>Instructions</strong>
+          <ol style="margin:6px 0 0 18px;padding:0;color:#333">
+            <li>For each side choose a <strong>Solvent</strong> and a <strong>Kool-Aid sample</strong>.</li>
+            <li>Click <strong>Run Chromatography</strong>.</li>
+            <li>Use the ruler (left of each strip) to measure from the origin line to the <strong>center</strong> of each dye spot in <strong>cm</strong>.</li>
+            <li>Record distances & calculate <strong>Rf = (dye distance)/(solvent front distance)</strong>.</li>
+            <li>Click <strong>Check My Work</strong> for combined feedback.</li>
+          </ol>
+        </div>
+        <div style="text-align:right">
+          <div class="small">Scale on-screen: <strong>1 cm ≈ 40 px</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label>Solvent A:</label>
+        <select id="solventA"></select>
+        <label style="margin-left:8px">Sample A:</label>
+        <select id="sampleA"></select>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center">
+        <label>Solvent B:</label>
+        <select id="solventB"></select>
+        <label style="margin-left:8px">Sample B:</label>
+        <select id="sampleB"></select>
+      </div>
+
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button id="runBtn">Run Chromatography</button>
+        <button id="checkBtn" class="ghost">Check My Work</button>
+        <button id="resetBtn" class="ghost">Reset Lab</button>
+      </div>
+    </div>
+
+    <div class="sim-row">
+      <div class="panel" style="flex:1;min-width:360px">
+        <div class="title-small">Solvent A</div>
+        <div class="wrapper">
+          <div class="ruler" id="rulerA" aria-hidden="false">
+            <svg id="svgA" viewBox="0 0 84 480" width="84" height="480" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="84" height="480" rx="6" fill="#e6e9ee"/></svg>
+          </div>
+          <div class="paper" id="paperA" aria-label="Chromatography paper A">
+            <div class="baseline" id="baselineA"></div>
+            <div class="front" id="frontA"></div>
+          </div>
+        </div>
+        <div class="scale-note">Scale: 1 cm ≈ 40 px</div>
+      </div>
+
+      <div class="panel" style="flex:1;min-width:360px">
+        <div class="title-small">Solvent B</div>
+        <div class="wrapper">
+          <div class="ruler" id="rulerB" aria-hidden="false">
+            <svg id="svgB" viewBox="0 0 84 480" width="84" height="480" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="84" height="480" rx="6" fill="#e6e9ee"/></svg>
+          </div>
+          <div class="paper" id="paperB" aria-label="Chromatography paper B">
+            <div class="baseline" id="baselineB"></div>
+            <div class="front" id="frontB"></div>
+          </div>
+        </div>
+        <div class="scale-note">Scale: 1 cm ≈ 40 px</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Solvent</th><th>Dye Color</th><th>Distance (cm)</th><th>Solvent Front (cm)</th><th>Rf</th></tr>
+        </thead>
+        <tbody id="dataTable">
+          <!-- rows generated by script -->
+        </tbody>
+      </table>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+        <div id="checkSummary" class="small" style="color:#0b6b3a"></div>
+      </div>
+    </div>
+
+    <div class="footer">Created for AP Chemistry – Kool-Aid Chromatography Virtual Lab</div>
+  </div>
+
+<script>
+// Data definitions
+const SOLVENTS = [
+  {id:'water', label:'Water', pol:9.0},
+  {id:'ethanol', label:'Ethanol', pol:5.2},
+  {id:'acetone', label:'Acetone', pol:5.1},
+  {id:'isopropyl', label:'Isopropyl Alcohol', pol:4.3},
+  {id:'nacl', label:'0.1 M NaCl', pol:9.1},
+  {id:'hexane', label:'Hexane', pol:0.1},
+];
+
+const DYES = {
+  'Red40': {color:'#ff4d4d', pol:7.5, label:'Red 40'},
+  'Yellow6': {color:'#ffcc33', pol:4.0, label:'Yellow 6'},
+  'Blue1': {color:'#3399ff', pol:6.0, label:'Blue 1'}
+};
+
+const SAMPLES = [
+  {id:'grape', label:'Grape', components:['Blue1','Red40']},
+  {id:'orange', label:'Orange', components:['Yellow6','Red40']},
+  {id:'blue', label:'Blue Raspberry', components:['Blue1']},
+  {id:'mix', label:'Mix (Grape + Orange + Blue Raspberry)', components:['Blue1','Red40','Yellow6']}
+];
+
+// DOM refs
+const solventA = document.getElementById('solventA');
+const solventB = document.getElementById('solventB');
+const sampleA = document.getElementById('sampleA');
+const sampleB = document.getElementById('sampleB');
+const runBtn = document.getElementById('runBtn');
+const resetBtn = document.getElementById('resetBtn');
+const checkBtn = document.getElementById('checkBtn');
+const paperA = document.getElementById('paperA');
+const paperB = document.getElementById('paperB');
+const frontA = document.getElementById('frontA');
+const frontB = document.getElementById('frontB');
+const baselineA = document.getElementById('baselineA');
+const baselineB = document.getElementById('baselineB');
+const svgA = document.getElementById('svgA');
+const svgB = document.getElementById('svgB');
+const dataTable = document.getElementById('dataTable');
+const checkSummary = document.getElementById('checkSummary');
+
+// populate selects
+function populateSelects(){
+  SOLVENTS.forEach(s=>{
+    const o1 = document.createElement('option'); o1.value = s.id; o1.textContent = s.label; solventA.appendChild(o1);
+    const o2 = o1.cloneNode(true); solventB.appendChild(o2);
+  });
+  SAMPLES.forEach(s=>{
+    const a = document.createElement('option'); a.value = s.id; a.textContent = s.label; sampleA.appendChild(a);
+    const b = a.cloneNode(true); sampleB.appendChild(b);
+  });
+  solventA.value='water'; solventB.value='ethanol'; sampleA.value='grape'; sampleB.value='grape';
+}
+populateSelects();
+
+// draw rulers (cm ticks only, numbers on right)
+function drawRuler(svgEl){
+  const total_cm=15; const height=480; const px_per_cm=height/total_cm;
+  for(let cm=0; cm<=total_cm; cm++){
+    const y=Math.round(height - cm*px_per_cm);
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',54); line.setAttribute('x2',74);
+    line.setAttribute('y1',y); line.setAttribute('y2',y);
+    line.setAttribute('stroke','#000'); line.setAttribute('stroke-width','1');
+    svgEl.appendChild(line);
+    const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x',50); txt.setAttribute('y',y+4); txt.setAttribute('font-size',12);
+    txt.setAttribute('fill','#000'); txt.setAttribute('text-anchor','end'); txt.textContent=cm.toString();
+    svgEl.appendChild(txt);
+  }
+}
+drawRuler(svgA); drawRuler(svgB);
+
+// pixel mapping
+const PIXELS_PER_CM = 40;
+const PAPER_HEIGHT_PX = 480;
+
+// compute mobility
+function computeMobility(dyePol, solPol){
+  const diff=Math.abs(dyePol-solPol); const sim=1-diff/10; const mobility=0.2+sim*0.75;
+  return Math.max(0.05, Math.min(0.95, mobility));
+}
+
+// generate a run for a given solvent/sample
+function genRun(solId, sampleId){
+  const solvent = SOLVENTS.find(s=>s.id===solId);
+  const sample = SAMPLES.find(s=>s.id===sampleId);
+  const originY = PAPER_HEIGHT_PX - PIXELS_PER_CM; // baseline at 1 cm from bottom
+  const usableHeight = originY - 10;
+  const frontFrac = 0.35 + (solvent.pol/10)*0.6;
+  const frontDy = Math.round(usableHeight * frontFrac);
+  const frontY = originY - frontDy;
+  const dyes = sample.components.map((c,idx)=>{
+    const d = DYES[c];
+    const mobility = computeMobility(d.pol, solvent.pol);
+    const var_cm = (Math.random()*0.4 - 0.2);
+    const rand = 1 + (Math.random()*0.06 - 0.03);
+    const dyeDy = Math.round(frontDy * mobility * (0.82 + Math.random()*0.12) * rand + var_cm * PIXELS_PER_CM);
+    const dyeY = originY - dyeDy;
+    const dyeCm = parseFloat(((originY - dyeY)/PIXELS_PER_CM).toFixed(2));
+    const rpx = 8 + Math.round(Math.random()*4);
+    return {id:c,label:d.label,color:d.color,y_px:dyeY,cm:dyeCm,rpx};
+  });
+  const solventCm = parseFloat(((originY - frontY)/PIXELS_PER_CM).toFixed(2));
+  const trueRf={}; dyes.forEach(d=> trueRf[d.id]=parseFloat((d.cm/solventCm).toFixed(3)));
+  return {solvent,dyes,frontY,originY,solventCm,trueRf};
+}
+
+// clear paper
+function clearPaper(paperEl){
+  Array.from(paperEl.querySelectorAll('.spot')).forEach(n=>n.remove());
+  const front = paperEl.querySelector('.front'); if(front) front.style.display='none';
+}
+
+// render a run to given paper
+function renderRun(run,paperEl,frontEl,baselineEl){
+  clearPaper(paperEl);
+  baselineEl.style.top = (PAPER_HEIGHT_PX - PIXELS_PER_CM - 1) + 'px';
+  baselineEl.style.background = '#575757';
+  baselineEl.style.height = '3px';
+  run.dyes.forEach(d=>{
+    const el=document.createElement('div'); el.className='spot';
+    const size=d.rpx*2; el.style.width=size+'px'; el.style.height=size+'px';
+    el.style.left=(60 + Math.random()*120) + 'px'; el.style.top = (d.y_px - d.rpx) + 'px';
+    el.style.background = d.color; el.title = d.label + ' center at ' + d.cm + ' cm';
+    el.setAttribute('data-dye', d.id);
+    paperEl.appendChild(el);
+  });
+  frontEl.style.top = (run.frontY - 1) + 'px'; frontEl.style.display='block';
+}
+
+// populate data table with inputs for both runs
+function populateTable(runA, runB){
+  dataTable.innerHTML='';
+  const rows=[];
+  // For each run, create rows for its dyes
+  if(runA){
+    runA.dyes.forEach(d=> rows.push({side:'A', dye:d}));
+  }
+  if(runB){
+    runB.dyes.forEach(d=> rows.push({side:'B', dye:d}));
+  }
+  // To make table predictable, sort by side then dye label
+  rows.sort((a,b)=> a.side.localeCompare(b.side) || a.dye.label.localeCompare(b.dye.label));
+  rows.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${r.side}</td>
+      <td style="color:${r.dye.color}">${r.dye.label}</td>
+      <td><input type="number" step="0.01" class="dist-input" data-side="${r.side}" data-dye="${r.dye.id}"></td>
+      <td><input type="number" step="0.01" class="front-input" data-side="${r.side}"></td>
+      <td><input type="number" step="0.001" class="rf-input" data-side="${r.side}" data-dye="${r.dye.id}"></td>`;
+    dataTable.appendChild(tr);
+  });
+}
+
+// store current runs
+let currentA=null, currentB=null;
+
+// run button handler
+runBtn.addEventListener('click', ()=>{
+  currentA = genRun(solventA.value, sampleA.value);
+  currentB = genRun(solventB.value, sampleB.value);
+  renderRun(currentA, paperA, frontA, baselineA);
+  renderRun(currentB, paperB, frontB, baselineB);
+  populateTable(currentA, currentB);
+  checkSummary.textContent='';
+});
+
+// reset
+resetBtn.addEventListener('click', ()=>{
+  clearPaper(paperA); clearPaper(paperB);
+  dataTable.innerHTML=''; currentA=null; currentB=null; checkSummary.textContent='';
+});
+
+// check my work: validate distances and Rf
+checkBtn.addEventListener('click', ()=>{
+  if(!currentA && !currentB){ alert('Run the chromatography first.'); return; }
+  const rows = Array.from(document.querySelectorAll('#dataTable tr'));
+  let total = 0, correct = 0;
+  const problems = [];
+  rows.forEach(tr=>{
+    total++;
+    const side = tr.querySelector('td:first-child').textContent.trim();
+    const dye = tr.querySelector('td:nth-child(2)').textContent.trim();
+    const distInput = tr.querySelector('.dist-input');
+    const frontInput = tr.querySelector('.front-input');
+    const rfInput = tr.querySelector('.rf-input');
+    const distVal = parseFloat(distInput.value);
+    const frontVal = parseFloat(frontInput.value);
+    const rfVal = parseFloat(rfInput.value);
+    // find true values
+    const run = (side==='A') ? currentA : currentB;
+    if(!run){ problems.push(`${side} has no run data.`); return; }
+    const trueDye = run.dyes.find(d=> d.label===dye);
+    const trueFront = run.solventCm;
+    const trueDist = trueDye ? trueDye.cm : null;
+    let okDist = false, okRf = false;
+    if(!isNaN(distVal) && trueDist!==null){
+      if(Math.abs(distVal - trueDist) <= 0.2) okDist = true;
+    }
+    if(!isNaN(rfVal) && trueDist!==null && !isNaN(frontVal) && frontVal>0){
+      const trueRf = parseFloat((trueDist/trueFront).toFixed(3));
+      if(Math.abs(rfVal - trueRf) <= 0.05) okRf = true;
+    }
+    if(okDist && okRf){
+      correct++;
+    } else {
+      let msg = `${side} ${dye}:`;
+      if(!okDist) msg += ` distance off (expected ≈ ${trueDist} cm).`;
+      if(!okRf) msg += ` Rf off (expected ≈ ${(trueDist/trueFront).toFixed(3)}).`;
+      problems.push(msg);
+    }
+  });
+  if(problems.length===0){
+    checkSummary.style.color='#065f46';
+    checkSummary.textContent = `All entries look good — ${correct}/${total} correct.`;
+  } else {
+    checkSummary.style.color='#92400e';
+    checkSummary.textContent = `Issues detected: ${problems.join('  |  ')}`;
+  }
+});
+
+</script>
+</body>
+</html>
